@@ -1,0 +1,91 @@
+2026-03-24T08:53:54.893-05:00  INFO 12048 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : Starting BffapisApplication using Java 17.0.7 with PID 12048 (D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes started by jano1 in D:\proyectos\raissa\git\backend\raissa-bff-apis-spring)
+2026-03-24T08:53:54.896-05:00  INFO 12048 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : The following 1 profile is active: "desa"
+2026-03-24T08:53:55.896-05:00  INFO 12048 --- [bffapis] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8089 (http)
+2026-03-24T08:53:55.908-05:00  INFO 12048 --- [bffapis] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-24T08:53:55.909-05:00  INFO 12048 --- [bffapis] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-03-24T08:53:55.967-05:00  INFO 12048 --- [bffapis] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1018 ms
+2026-03-24T08:53:56.041-05:00  WARN 12048 --- [bffapis] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'rpaController' defined in file [D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes\com\raissa\bffapis\controller\RpaController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'rpaServiceImpl' defined in file [D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes\com\raissa\bffapis\service\impl\RpaServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'com.raissa.bffapis.domain.repository.ProviderRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+2026-03-24T08:53:56.043-05:00  INFO 12048 --- [bffapis] [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-03-24T08:53:56.060-05:00  INFO 12048 --- [bffapis] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-03-24T08:53:56.073-05:00 ERROR 12048 --- [bffapis] [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Parameter 0 of constructor in com.raissa.bffapis.service.impl.RpaServiceImpl required a bean of type 'com.raissa.bffapis.domain.repository.ProviderRepository' that could not be found.
+
+
+Action:
+
+Consider defining a bean of type 'com.raissa.bffapis.domain.repository.ProviderRepository' in your configuration.
+
+2026-03-24T08:54:36.160-05:00  INFO 14676 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : Starting BffapisApplication using Java 17.0.7 with PID 14676 (D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes started by jano1 in D:\proyectos\raissa\git\backend\raissa-bff-apis-spring)
+2026-03-24T08:54:36.163-05:00  INFO 14676 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : The following 1 profile is active: "desa"
+2026-03-24T08:54:36.945-05:00  INFO 14676 --- [bffapis] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8089 (http)
+2026-03-24T08:54:36.955-05:00  INFO 14676 --- [bffapis] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-24T08:54:36.955-05:00  INFO 14676 --- [bffapis] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-03-24T08:54:36.996-05:00  INFO 14676 --- [bffapis] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 791 ms
+2026-03-24T08:54:37.058-05:00  WARN 14676 --- [bffapis] [main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'rpaController' defined in file [D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes\com\raissa\bffapis\controller\RpaController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'rpaServiceImpl' defined in file [D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes\com\raissa\bffapis\service\impl\RpaServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'com.raissa.bffapis.domain.repository.ProviderRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+2026-03-24T08:54:37.061-05:00  INFO 14676 --- [bffapis] [main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-03-24T08:54:37.070-05:00  INFO 14676 --- [bffapis] [main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-03-24T08:54:37.083-05:00 ERROR 14676 --- [bffapis] [main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Parameter 0 of constructor in com.raissa.bffapis.service.impl.RpaServiceImpl required a bean of type 'com.raissa.bffapis.domain.repository.ProviderRepository' that could not be found.
+
+
+Action:
+
+Consider defining a bean of type 'com.raissa.bffapis.domain.repository.ProviderRepository' in your configuration.
+
+2026-03-24T09:02:58.199-05:00  INFO 24000 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : Starting BffapisApplication using Java 17.0.7 with PID 24000 (D:\proyectos\raissa\git\backend\raissa-bff-apis-spring\target\classes started by jano1 in D:\proyectos\raissa\git\backend\raissa-bff-apis-spring)
+2026-03-24T09:02:58.204-05:00  INFO 24000 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : The following 1 profile is active: "desa"
+2026-03-24T09:02:58.760-05:00  INFO 24000 --- [bffapis] [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-24T09:02:58.825-05:00  INFO 24000 --- [bffapis] [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 52 ms. Found 3 JPA repository interfaces.
+2026-03-24T09:02:59.227-05:00  INFO 24000 --- [bffapis] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8089 (http)
+2026-03-24T09:02:59.237-05:00  INFO 24000 --- [bffapis] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-24T09:02:59.238-05:00  INFO 24000 --- [bffapis] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-03-24T09:02:59.294-05:00  INFO 24000 --- [bffapis] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1044 ms
+2026-03-24T09:02:59.449-05:00  INFO 24000 --- [bffapis] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-24T09:02:59.691-05:00  INFO 24000 --- [bffapis] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@14b4340c
+2026-03-24T09:02:59.692-05:00  INFO 24000 --- [bffapis] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-24T09:02:59.740-05:00  INFO 24000 --- [bffapis] [main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-24T09:02:59.848-05:00  INFO 24000 --- [bffapis] [main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.7.Final
+2026-03-24T09:03:00.421-05:00  INFO 24000 --- [bffapis] [main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-24T09:03:00.528-05:00  WARN 24000 --- [bffapis] [main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-24T09:03:00.561-05:00  INFO 24000 --- [bffapis] [main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:3308/banking-proccesses]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 15.2
+	Default catalog/schema: banking-proccesses/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-24T09:03:01.806-05:00  INFO 24000 --- [bffapis] [main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-24T09:03:01.813-05:00  INFO 24000 --- [bffapis] [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-24T09:03:01.897-05:00  INFO 24000 --- [bffapis] [main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-24T09:03:02.655-05:00  INFO 24000 --- [bffapis] [main] c.r.b.s.impl.EncryptionServiceImpl       : Servicio de encriptación inicializado con clave de 16 caracteres
+2026-03-24T09:03:02.681-05:00  WARN 24000 --- [bffapis] [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-24T09:03:03.052-05:00  INFO 24000 --- [bffapis] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8089 (http) with context path '/'
+2026-03-24T09:03:03.057-05:00  INFO 24000 --- [bffapis] [main] com.raissa.bffapis.BffapisApplication    : Started BffapisApplication in 5.334 seconds (process running for 6.513)
+2026-03-24T09:05:48.357-05:00  INFO 24000 --- [bffapis] [SpringApplicationShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-24T09:05:48.386-05:00  INFO 24000 --- [bffapis] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-03-24T09:05:48.389-05:00  INFO 24000 --- [bffapis] [SpringApplicationShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-24T09:05:48.391-05:00  INFO 24000 --- [bffapis] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-03-24T09:05:48.393-05:00  INFO 24000 --- [bffapis] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
