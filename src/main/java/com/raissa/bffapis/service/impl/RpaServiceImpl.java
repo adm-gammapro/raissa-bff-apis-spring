@@ -3,6 +3,12 @@ package com.raissa.bffapis.service.impl;
 import com.raissa.bffapis.domain.dto.request.DatosSaldosApiRequest;
 import com.raissa.bffapis.domain.dto.request.LoginRequest;
 import com.raissa.bffapis.domain.dto.request.ProviderLoginRequest;
+import com.raissa.bffapis.domain.dto.request.payments.ConfirmaTransRequestDto;
+import com.raissa.bffapis.domain.dto.request.payments.ConfirmaTransSendBffRequestDto;
+import com.raissa.bffapis.domain.dto.request.payments.ConsultaTransRequestDto;
+import com.raissa.bffapis.domain.dto.request.payments.ConsultaTransSendBffRequestDto;
+import com.raissa.bffapis.domain.dto.request.payments.GroupConfirmaTransRequestDto;
+import com.raissa.bffapis.domain.dto.request.payments.GroupConsultaTransRequestDto;
 import com.raissa.bffapis.domain.dto.response.AuthResponse;
 import com.raissa.bffapis.domain.dto.response.DatosCuentaRpaResponse;
 import com.raissa.bffapis.domain.dto.response.DatosMovimientosRpaResponse;
@@ -13,6 +19,13 @@ import com.raissa.bffapis.domain.dto.response.ProviderLoginResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderMovimientoResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderSaldoResponse;
 import com.raissa.bffapis.domain.dto.response.SaldosRpaResponse;
+import com.raissa.bffapis.domain.dto.response.payments.BTErrorNegocioDto;
+import com.raissa.bffapis.domain.dto.response.payments.ConfirmaTransGetBffResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.ConfirmaTransGetResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.ConsultaTransGetBffResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.ConsultaTransGetResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConfirmaTransResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConsultaTransResponseDto;
 import com.raissa.bffapis.domain.entity.Provider;
 import com.raissa.bffapis.domain.entity.Session;
 import com.raissa.bffapis.domain.repository.ProviderRepository;
@@ -23,6 +36,7 @@ import com.raissa.bffapis.exception.EmptyResponseException;
 import com.raissa.bffapis.exception.InvalidCredentialsException;
 import com.raissa.bffapis.exception.ProviderLoginException;
 import com.raissa.bffapis.exception.ProviderNotFoundException;
+import com.raissa.bffapis.exception.ProviderTransferenciaException;
 import com.raissa.bffapis.exception.RpaAuthenticationException;
 import com.raissa.bffapis.service.KeyService;
 import com.raissa.bffapis.service.RpaService;
@@ -46,12 +60,18 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -93,7 +113,11 @@ public class RpaServiceImpl implements RpaService {
             session = sessionRepository.findByTransactionId(authResponse.getTransactionId()).get();
 
             if (provider.getApi() == 1) {
-                providerLoginResponse = callProviderApi(provider.getRuta(), provider.getExtra(), authResponse.getTransactionId(), authResponse.getToken(), loginRequest);
+                providerLoginResponse = callProviderApi(provider.getRuta(),
+                                                        provider.getExtra(),
+                                                        authResponse.getTransactionId(),
+                                                        authResponse.getToken(),
+                                                        loginRequest);
                 session.setTokenAlterno(providerLoginResponse.getTokenAlterno());
                 session.setSessionToken(providerLoginResponse.getSessionToken());
             } else {
@@ -263,6 +287,109 @@ public class RpaServiceImpl implements RpaService {
         } catch (Exception e) {
             log.error("Error inesperado en logout: {}", e.getMessage(), e);
             throw new RpaAuthenticationException("Error interno del servidor", e);
+        }
+    }
+
+    @Override
+    public GroupConsultaTransResponseDto consultaTransferencia(String transactionId,
+                                                               String apiKey,
+                                                               GroupConsultaTransRequestDto listConsultasRequest) {
+        validateApiKeyInService(apiKey);
+
+        log.info("Ejecutando consulta de transferencia - TransactionId: {}, API Key: {}", transactionId, apiKey);
+
+        Session session = sessionRepository.findByTransactionId(transactionId).get();
+
+        String token = session.getToken();
+        String providerReference = session.getProvider();
+
+        Provider provider = providerRepository
+                .findByReferenceAndActive(providerReference, (short) 1)
+                .orElseThrow(() -> new ProviderNotFoundException("Provider no encontrado o inactivo: " + providerReference));
+
+        try {
+            List<ConsultaTransGetResponseDto> listResponseConsultas = new ArrayList<>();
+            GroupConsultaTransResponseDto responseDto = new GroupConsultaTransResponseDto();
+            ConsultaTransGetResponseDto responseConsulta;
+
+            if (provider.getApi() == 1) {
+                for (ConsultaTransRequestDto consultaRequest : listConsultasRequest.getListConsultaTransferencia()) {
+                    responseConsulta = evaluaConsultaResultado(transactionId,
+                            token,
+                            provider.getRuta(),
+                            session,
+                            consultaRequest);
+                    responseConsulta.setIdSolicitud(consultaRequest.getIdSolicitud());
+                    responseConsulta.setIdCargoSolicitud(consultaRequest.getIdCargoSolicitud());
+                    responseConsulta.setIdAbonoSolicitud(consultaRequest.getIdAbonoSolicitud());
+                    listResponseConsultas.add(responseConsulta);
+                }
+
+                responseDto.setStatus(Constantes.KEY_SUCCESS);
+                responseDto.setListRespuestaConsultaTransferencia(listResponseConsultas);
+
+                return responseDto;
+            } else {
+                return GroupConsultaTransResponseDto.error("Provider no soportado");
+            }
+        } catch (ProviderNotFoundException e) {
+            log.warn("Error específico en consulta de transferencia: {}", e.getMessage());
+            return GroupConsultaTransResponseDto.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error inesperado en consulta de transferencia: {}", e.getMessage(), e);
+            return GroupConsultaTransResponseDto.error("Error interno del servidor");
+        }
+    }
+
+    @Override
+    public GroupConfirmaTransResponseDto confirmaTransferencia(String transactionId,
+                                                               String apiKey,
+                                                               GroupConfirmaTransRequestDto listConfirmacionRequest) {
+        validateApiKeyInService(apiKey);
+
+        log.info("Ejecutando confirmacion de transferencia - TransactionId: {}, API Key: {}", transactionId, apiKey);
+
+        Session session = sessionRepository.findByTransactionId(transactionId).get();
+
+        String token = session.getToken();
+        String providerReference = session.getProvider();
+
+        Provider provider = providerRepository
+                .findByReferenceAndActive(providerReference, (short) 1)
+                .orElseThrow(() -> new ProviderNotFoundException("Provider no encontrado o inactivo: " + providerReference));
+
+        try {
+            List<ConfirmaTransGetResponseDto> listResponseConfirmacion = new ArrayList<>();
+            GroupConfirmaTransResponseDto responseDto = new GroupConfirmaTransResponseDto();
+            ConfirmaTransGetResponseDto responseConfirmacion;
+
+            log.warn("contenido de peticion: {}", listConfirmacionRequest.toString());
+
+            if (provider.getApi() == 1) {
+                for (ConfirmaTransRequestDto confirmaRequest : listConfirmacionRequest.getListConfirmacionTransferencia()) {
+                    responseConfirmacion = evaluaConfirmacionResultado(transactionId,
+                            token,
+                            provider.getRuta(),
+                            session,
+                            confirmaRequest);
+                    responseConfirmacion.setIdSolicitud(confirmaRequest.getIdSolicitud());
+                    responseConfirmacion.setIdCargoSolicitud(confirmaRequest.getIdCargoSolicitud());
+                    responseConfirmacion.setIdAbonoSolicitud(confirmaRequest.getIdAbonoSolicitud());
+                    listResponseConfirmacion.add(responseConfirmacion);
+                }
+                responseDto.setStatus(Constantes.KEY_SUCCESS);
+                responseDto.setListRespuestaConfirmacionTransferencia(listResponseConfirmacion);
+
+                return responseDto;
+            } else {
+                return GroupConfirmaTransResponseDto.error("Provider no soportado");
+            }
+        } catch (ProviderNotFoundException e) {
+            log.warn("Error específico en confirmacion de transferencia: {}", e.getMessage());
+            return GroupConfirmaTransResponseDto.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error inesperado en confirmacion de transferencia: {}", e.getMessage(), e);
+            return GroupConfirmaTransResponseDto.error("Error interno del servidor");
         }
     }
 
@@ -1118,6 +1245,286 @@ public class RpaServiceImpl implements RpaService {
         log.info("Movimientos consolidados: {} movimientos totales", todosMovimientos.size());
 
         return consolidado;
+    }
+
+    private ConsultaTransGetBffResponseDto callConsultaTransferenciaApi(String transactionId,
+                                                                        String token,
+                                                                        String providerRoute,
+                                                                        String tokenAlterno,
+                                                                        String sessionToken,
+                                                                        ConsultaTransRequestDto request) {
+        String url = String.format("%s/api/%s/consultar-transferencia/%s", rpaBaseUrl, providerRoute, transactionId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        HttpEntity<ConsultaTransSendBffRequestDto> requestSend = new HttpEntity<>(construirDatosConsultaRequest(request, tokenAlterno, sessionToken), headers);
+
+        try {
+            ResponseEntity<ConsultaTransGetBffResponseDto> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestSend,
+                    ConsultaTransGetBffResponseDto.class
+            );
+
+            ConsultaTransGetBffResponseDto body = response.getBody();
+            if (body == null) {
+                throw new ProviderTransferenciaException("Respuesta vacía del servicio de consulta de transferencias inmediatas.");
+            }
+
+            if (body.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)) {
+                Object erroresObj = body.getErroresNegocio() != null
+                        ? body.getErroresNegocio().getBtErrorNegocio()
+                        : null;
+                boolean esError = erroresObj instanceof List<?> lista && !lista.isEmpty();
+                String errores;
+                if (esError) {
+                    errores = deriveMessage(body.getErroresNegocio().getBtErrorNegocio());
+                } else {
+                    errores = "Error no definido en la respuesta.";
+                }
+                body.setDscRespuesta(errores);
+                return Optional.of(body)
+                        .orElseThrow(() -> new ProviderTransferenciaException("Body no disponible en respuesta exitosa del provider"));
+            } else {
+                log.info("Provider OK (transactionId={}): {}", transactionId, "Consulta correcta");
+                return Optional.of(body)
+                        .orElseThrow(() -> new ProviderTransferenciaException("Body vacío en respuesta exitosa del provider"));
+            }
+        } catch (ProviderTransferenciaException e){
+            log.error("Error controlado en la peticion al servidor de APIS (transactionId={}): {}", transactionId, e.getMessage());
+            throw new ProviderTransferenciaException(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error inesperado en la peticion al servidor de APIS (transactionId={}): {}", transactionId, e.getMessage());
+            throw new ProviderTransferenciaException("Error Inesperado en la peticion al servidor de APIS: " + e.getMessage());
+        }
+    }
+
+    private ConfirmaTransGetBffResponseDto callConfirmacionTransferenciaApi(String transactionId,
+                                                                            String token,
+                                                                            String providerRoute,
+                                                                            String tokenAlterno,
+                                                                            String sessionToken,
+                                                                            ConfirmaTransRequestDto request) {
+        String url = String.format("%s/api/%s/confirmar-transferencia/%s", rpaBaseUrl, providerRoute, transactionId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        HttpEntity<ConfirmaTransSendBffRequestDto> requestSend = new HttpEntity<>(construirDatosConfirmacionRequest(request, tokenAlterno, sessionToken), headers);
+
+        try {
+            ResponseEntity<ConfirmaTransGetBffResponseDto> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestSend,
+                    ConfirmaTransGetBffResponseDto.class
+            );
+
+            ConfirmaTransGetBffResponseDto body = response.getBody();
+            if (body == null) {
+                throw new ProviderTransferenciaException("Respuesta vacía del servicio de consulta de transferencias inmediatas.");
+            }
+
+            if (body.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)) {
+                Object erroresObj = body.getErroresNegocio() != null
+                        ? body.getErroresNegocio().getBtErrorNegocio()
+                        : null;
+                boolean esError = erroresObj instanceof List<?> lista && !lista.isEmpty();
+                String errores;
+                if (esError) {
+                    errores = deriveMessage(body.getErroresNegocio().getBtErrorNegocio());
+                } else {
+                    errores = "Error no definido en la respuesta.";
+                }
+                body.setDscRespuesta(errores);
+
+                return Optional.of(body)
+                        .orElseThrow(() -> new ProviderTransferenciaException(errores));
+            } else {
+                log.info("Provider OK (transactionId={}): {}", transactionId, "Consulta correcta");
+                return Optional.of(body)
+                        .orElseThrow(() -> new ProviderTransferenciaException("Body vacío en respuesta exitosa del provider"));
+            }
+        } catch (ProviderTransferenciaException e){
+            log.error("Error controlado en la peticion al servidor de APIS (transactionId={}): {}", transactionId, e.getMessage());
+            throw new ProviderTransferenciaException(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error inesperado en la peticion al servidor de APIS (transactionId={}): {}", transactionId, e.getMessage());
+            throw new ProviderTransferenciaException("Error Inesperado en la peticion al servidor de APIS: " + e.getMessage());
+        }
+    }
+
+    private ConfirmaTransGetResponseDto evaluaConfirmacionResultado(String transactionId,
+                                                                String token,
+                                                                String providerRuta,
+                                                                Session session,
+                                                                ConfirmaTransRequestDto consultaRequest) {
+        ConfirmaTransGetResponseDto responseConfirmacion;
+        try {
+            ConfirmaTransGetBffResponseDto confirmacion = callConfirmacionTransferenciaApi(
+                    transactionId,
+                    token,
+                    providerRuta,
+                    session.getTokenAlterno(),
+                    session.getSessionToken(),
+                    consultaRequest);
+            responseConfirmacion = buildSuccessConfirmacionResponseFromProvider(confirmacion);
+        } catch (Exception e) {
+            ZoneId zone = ZoneId.of("America/Lima");
+            LocalDateTime now = LocalDateTime.now(zone);
+
+            responseConfirmacion = ConfirmaTransGetResponseDto.error(e.getMessage());
+            responseConfirmacion.setEstado(Constantes.ESTADO_ALFIN_ERROR);
+            responseConfirmacion.setFecha(now.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
+            responseConfirmacion.setHora(now.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+        }
+        return responseConfirmacion;
+    }
+
+    private ConsultaTransGetResponseDto evaluaConsultaResultado(String transactionId,
+                                                                String token,
+                                                                String providerRuta,
+                                                                Session session,
+                                                                ConsultaTransRequestDto consultaRequest) {
+        ConsultaTransGetResponseDto responseConsulta;
+        try {
+            ConsultaTransGetBffResponseDto consulta = callConsultaTransferenciaApi(
+                    transactionId,
+                    token,
+                    providerRuta,
+                    session.getTokenAlterno(),
+                    session.getSessionToken(),
+                    consultaRequest);
+            responseConsulta = buildSuccessConsultaResponseFromProvider(consulta);
+        } catch (Exception e) {
+            ZoneId zone = ZoneId.of("America/Lima");
+            LocalDateTime now = LocalDateTime.now(zone);
+
+            responseConsulta = ConsultaTransGetResponseDto.error(e.getMessage());
+            responseConsulta.setEstado(Constantes.ESTADO_ALFIN_ERROR);
+            responseConsulta.setFecha(now.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE));
+            responseConsulta.setHora(now.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+        }
+        return responseConsulta;
+    }
+
+    private ConsultaTransGetResponseDto buildSuccessConsultaResponseFromProvider(ConsultaTransGetBffResponseDto dto) {
+        if (dto == null) {
+            return ConsultaTransGetResponseDto.error("Respuesta vacía del provider");
+        }
+
+        String status = Constantes.KEY_SUCCESS;
+
+        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)){
+            status = Constantes.KEY_ERROR_CODE;
+        }
+
+        return ConsultaTransGetResponseDto.builder()
+                .status(status)
+                .message("")
+                .tipoDocBeneficiario(dto.getTipoDocBeneficiario())
+                .documentoBeneficiario(dto.getDocumentoBeneficiario())
+                .nombreBeneficiario(dto.getNombreBeneficiario())
+                .direccionBeneficiario(dto.getDireccionBeneficiario())
+                .telefonoBeneficiario(dto.getTelefonoBeneficiario())
+                .movilBeneficiario(dto.getMovilBeneficiario())
+                .mismoTitularOut(dto.getMismoTitularOut())
+                .transferenciaId(dto.getTransferenciaId())
+                .itf(dto.getItf())
+                .comisionOrigen(dto.getComisionOrigen())
+                .comisionDestino(dto.getComisionDestino())
+                .mpe001idl(dto.getMpe001idl())
+                .codRespuesta(dto.getCodRespuesta())
+                .dscRespuesta(dto.getDscRespuesta())
+                .estado(dto.getBtoutreq().getEstado())
+                .fecha(dto.getBtoutreq().getFecha())
+                .hora(dto.getBtoutreq().getHora())
+                .build();
+    }
+
+    private ConfirmaTransGetResponseDto buildSuccessConfirmacionResponseFromProvider(ConfirmaTransGetBffResponseDto dto) {
+        if (dto == null) {
+            return ConfirmaTransGetResponseDto.error("Respuesta vacía del provider");
+        }
+
+        String status = Constantes.KEY_SUCCESS;
+
+        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)){
+            status = Constantes.KEY_ERROR_CODE;
+        }
+
+        return ConfirmaTransGetResponseDto.builder()
+                .status(status)
+                .message("")
+                .movimientoUid(dto.getMovimientoUId().toString())
+                .codRespuesta(dto.getCodRespuesta())
+                .dscRespuesta(dto.getDscRespuesta())
+                .estado(dto.getBtoutreq().getEstado())
+                .fecha(dto.getBtoutreq().getFecha())
+                .hora(dto.getBtoutreq().getHora())
+                .build();
+    }
+
+    private ConsultaTransSendBffRequestDto construirDatosConsultaRequest(ConsultaTransRequestDto request,
+                                                                         String tokenAlterno,
+                                                                         String sessionToken) {
+        ConsultaTransSendBffRequestDto sendRequest = new ConsultaTransSendBffRequestDto();
+        sendRequest.setTokenAlterno(tokenAlterno);
+        sendRequest.setSessionToken(sessionToken);
+        sendRequest.setClienteBaaS(request.getClienteBaaS());
+        sendRequest.setCuentaBaaS(request.getCuentaBaaS());
+        sendRequest.setMoneda(request.getMoneda());
+        sendRequest.setImporte(request.getImporte());
+        sendRequest.setCodigoTransaccion(request.getCodigoTransaccion());
+        sendRequest.setBancoDestino(request.getBancoDestino());
+        sendRequest.setSucursalDestino(request.getSucursalDestino());
+        sendRequest.setTarjeta(request.getTarjeta());
+        sendRequest.setCciBeneficiario(request.getCciBeneficiario());
+        sendRequest.setMismoTitular(request.getMismoTitular());
+        sendRequest.setTipoDocumentoOrdenante(request.getTipoDocumentoOrdenante());
+        sendRequest.setDocumentoOrdenante(request.getDocumentoOrdenante());
+        sendRequest.setNombreOrdenante(request.getNombreOrdenante());
+        sendRequest.setApellidoPaternoOrdenante(request.getApellidoPaternoOrdenante());
+        sendRequest.setApellidoMaternoOrdenante(request.getApellidoMaternoOrdenante());
+
+        return sendRequest;
+    }
+
+    private ConfirmaTransSendBffRequestDto construirDatosConfirmacionRequest(ConfirmaTransRequestDto request,
+                                                                             String tokenAlterno,
+                                                                             String sessionToken) {
+        ConfirmaTransSendBffRequestDto sendRequest = new ConfirmaTransSendBffRequestDto();
+        sendRequest.setTokenAlterno(tokenAlterno);
+        sendRequest.setSessionToken(sessionToken);
+        sendRequest.setClienteBaaS(request.getClienteBaaS());
+        sendRequest.setCuentaBaaS(request.getCuentaBaaS());
+        sendRequest.setMoneda(request.getMoneda());
+        sendRequest.setImporte(request.getImporte());
+        sendRequest.setTransferenciaId(request.getTransferenciaId());
+        sendRequest.setMpe001idl(request.getMpe001idl());
+
+        return sendRequest;
+    }
+
+    private String deriveMessage(List<BTErrorNegocioDto> errores) {
+        if (errores != null && !errores.isEmpty()) {
+            String joined = errores.stream()
+                    .filter(Objects::nonNull)
+                    .map(e -> {
+                        String c = e.getCodigo() == null ? "" : String.valueOf(e.getCodigo());
+                        String s = e.getSeveridad() == null ? "" : e.getSeveridad();
+                        String d = e.getDescripcion() == null ? "" : e.getDescripcion();
+                        return String.join(" | ", Arrays.asList(c, s, d).stream().filter(x -> !x.isBlank()).collect(Collectors.toList()));
+                    })
+                    .collect(Collectors.joining("; "));
+            if (!joined.isBlank()) return joined;
+        }
+
+        return "";
     }
 
     private String formatearFecha(String fecha) {

@@ -44,4 +44,9 @@ public class Constantes {
 
     public static final String KEY_DATA = "data";
     public static final String KEY_COUNT = "count";
+
+    public static final String ESTADO_ALFIN_OK = "OK";
+    public static final String ESTADO_ALFIN_INFO = "NEG_INFO";
+    public static final String ESTADO_ALFIN_WARNING = "NEG_WARNING";
+    public static final String ESTADO_ALFIN_ERROR = "NEG_ERROR";
 }

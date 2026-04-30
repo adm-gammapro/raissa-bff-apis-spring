@@ -2,17 +2,22 @@ package com.raissa.bffapis.controller;
 
 import com.raissa.bffapis.domain.dto.request.DatosSaldoBff;
 import com.raissa.bffapis.domain.dto.request.LoginRequest;
+import com.raissa.bffapis.domain.dto.request.payments.GroupConfirmaTransRequestDto;
+import com.raissa.bffapis.domain.dto.request.payments.GroupConsultaTransRequestDto;
 import com.raissa.bffapis.domain.dto.response.AuthResponse;
 import com.raissa.bffapis.domain.dto.response.LoginResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderLoginResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderMovimientoResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderSaldoResponse;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConfirmaTransResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConsultaTransResponseDto;
 import com.raissa.bffapis.exception.ApiKeyValidationException;
 import com.raissa.bffapis.exception.ConnectionException;
 import com.raissa.bffapis.exception.EmptyResponseException;
 import com.raissa.bffapis.exception.InvalidCredentialsException;
 import com.raissa.bffapis.exception.ProviderLoginException;
 import com.raissa.bffapis.exception.ProviderNotFoundException;
+import com.raissa.bffapis.exception.ProviderTransferenciaException;
 import com.raissa.bffapis.exception.RpaAuthenticationException;
 import com.raissa.bffapis.service.RpaService;
 import com.raissa.bffapis.util.Constantes;
@@ -198,5 +203,45 @@ public class RpaController {
         sessionInfo.put("token", rpaService.getTokenFromSession(transactionId, apiKey));
 
         return ResponseEntity.ok(sessionInfo);
+    }
+
+    @PostMapping("/consulta-transferencia/{transactionId}")
+    public ResponseEntity<GroupConsultaTransResponseDto> consultaTransferencia(@RequestHeader(value = Constantes.KEY_API_KEY, required = false) String apiKey,
+                                                                               @PathVariable String transactionId,
+                                                                               @RequestBody(required = false) GroupConsultaTransRequestDto datos) {
+        try {
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(GroupConsultaTransResponseDto.error("Missing API key"));
+            }
+
+            GroupConsultaTransResponseDto response = rpaService.consultaTransferencia(transactionId, apiKey, datos);
+
+            return ResponseEntity.ok()
+                    .body(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(GroupConsultaTransResponseDto.error("Error No controlado: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/confirma-transferencia/{transactionId}")
+    public ResponseEntity<GroupConfirmaTransResponseDto> confirmaTransferencia(@RequestHeader(value = Constantes.KEY_API_KEY, required = false) String apiKey,
+                                                                               @PathVariable String transactionId,
+                                                                               @RequestBody(required = false) GroupConfirmaTransRequestDto datos) {
+        try {
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(GroupConfirmaTransResponseDto.error("Missing API key"));
+            }
+
+            GroupConfirmaTransResponseDto response = rpaService.confirmaTransferencia(transactionId, apiKey, datos);
+
+            return ResponseEntity.ok()
+                    .body(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(GroupConfirmaTransResponseDto.error("Error No controlado: " + e.getMessage()));
+        }
     }
 }
