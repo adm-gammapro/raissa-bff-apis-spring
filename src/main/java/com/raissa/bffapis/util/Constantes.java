@@ -49,4 +49,7 @@ public class Constantes {
     public static final String ESTADO_ALFIN_INFO = "NEG_INFO";
     public static final String ESTADO_ALFIN_WARNING = "NEG_WARNING";
     public static final String ESTADO_ALFIN_ERROR = "NEG_ERROR";
+    public static final String ESTADO_ALFIN_PLAT_ERROR = "BTS_PLAT_ERROR";
+    public static final String ESTADO_ALFIN_SEG_ERROR = "BTS_SEG_ERROR";
+    public static final String ESTADO_ALFIN_CONF_ERROR = "BTS_CONF_ERROR";
 }

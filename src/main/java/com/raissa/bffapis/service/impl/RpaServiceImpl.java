@@ -1419,7 +1419,11 @@ public class RpaServiceImpl implements RpaService {
 
         String status = Constantes.KEY_SUCCESS;
 
-        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)){
+        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_WARNING) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_PLAT_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_SEG_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_CONF_ERROR)){
             status = Constantes.KEY_ERROR_CODE;
         }
 
@@ -1453,7 +1457,11 @@ public class RpaServiceImpl implements RpaService {
 
         String status = Constantes.KEY_SUCCESS;
 
-        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)){
+        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_WARNING) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_PLAT_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_SEG_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_CONF_ERROR)){
             status = Constantes.KEY_ERROR_CODE;
         }
 
