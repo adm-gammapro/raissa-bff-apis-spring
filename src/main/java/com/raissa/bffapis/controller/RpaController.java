@@ -9,7 +9,9 @@ import com.raissa.bffapis.domain.dto.response.LoginResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderLoginResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderMovimientoResponse;
 import com.raissa.bffapis.domain.dto.response.ProviderSaldoResponse;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConfirmaTransDetalladaResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.GroupConfirmaTransResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConsultaTransDetalladaResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.GroupConsultaTransResponseDto;
 import com.raissa.bffapis.exception.ApiKeyValidationException;
 import com.raissa.bffapis.exception.ConnectionException;
@@ -21,6 +23,7 @@ import com.raissa.bffapis.exception.ProviderTransferenciaException;
 import com.raissa.bffapis.exception.RpaAuthenticationException;
 import com.raissa.bffapis.service.RpaService;
 import com.raissa.bffapis.util.Constantes;
+import com.raissa.comun.util.ConstanteError;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -221,7 +224,35 @@ public class RpaController {
                     .body(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(GroupConsultaTransResponseDto.error("Error No controlado: " + e.getMessage()));
+                    .body(GroupConsultaTransResponseDto.error(ConstanteError.MENSAJE_ERROR_NO_CONTROLADO_PARAM + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/consulta-transferencia-detallada/{transactionId}")
+    public ResponseEntity<GroupConsultaTransDetalladaResponseDto> consultaTransferenciaDetallada(@RequestHeader(value = Constantes.KEY_API_KEY, required = false) String apiKey,
+                                                                                                             @PathVariable String transactionId,
+                                                                                                             @RequestBody(required = false) GroupConsultaTransRequestDto datos) {
+        GroupConsultaTransDetalladaResponseDto response;
+        try {
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                response = new GroupConsultaTransDetalladaResponseDto();
+                response.setStatus(Constantes.KEY_ERROR_CODE);
+                response.setMessage("Missing API key");
+
+                return ResponseEntity.badRequest()
+                        .body(response);
+            }
+
+            response = rpaService.consultaDetalladaTransferencia(transactionId, apiKey, datos);
+
+            return ResponseEntity.ok().body(response);
+        } catch (Exception e) {
+            response = new GroupConsultaTransDetalladaResponseDto();
+            response.setStatus(Constantes.KEY_ERROR_CODE);
+            response.setMessage(ConstanteError.MENSAJE_ERROR_NO_CONTROLADO_PARAM + e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(response);
         }
     }
 
@@ -241,7 +272,35 @@ public class RpaController {
                     .body(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(GroupConfirmaTransResponseDto.error("Error No controlado: " + e.getMessage()));
+                    .body(GroupConfirmaTransResponseDto.error(ConstanteError.MENSAJE_ERROR_NO_CONTROLADO_PARAM + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/confirma-transferencia-detallada/{transactionId}")
+    public ResponseEntity<GroupConfirmaTransDetalladaResponseDto> confirmaTransferenciaDetallada(@RequestHeader(value = Constantes.KEY_API_KEY, required = false) String apiKey,
+                                                                                                 @PathVariable String transactionId,
+                                                                                                 @RequestBody(required = false) GroupConfirmaTransRequestDto datos) {
+        GroupConfirmaTransDetalladaResponseDto response;
+        try {
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                response = new GroupConfirmaTransDetalladaResponseDto();
+                response.setStatus(Constantes.KEY_ERROR_CODE);
+                response.setMessage("Missing API key");
+
+                return ResponseEntity.badRequest()
+                        .body(response);
+            }
+
+            response = rpaService.confirmaTransferenciaDetallada(transactionId, apiKey, datos);
+
+            return ResponseEntity.ok().body(response);
+        } catch (Exception e) {
+            response = new GroupConfirmaTransDetalladaResponseDto();
+            response.setStatus(Constantes.KEY_ERROR_CODE);
+            response.setMessage(ConstanteError.MENSAJE_ERROR_NO_CONTROLADO_PARAM + e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(response);
         }
     }
 }

@@ -8,6 +8,7 @@ public class Constantes {
     public static final String KEY_MESSAGE = "message";
     public static final String KEY_TRANSACTION_ID = "transactionId";
     public static final String KEY_ERROR_CODE = "error";
+    public static final String KEY_ERROR_BUSSINESS_CODE = "error_bussiness";
     public static final String KEY_LOGGED = "logged_in";
     public static final String KEY_WRONG = "wrong_credentials";
     public static final String KEY_API_KEY = "X-API-Key";

@@ -1,5 +1,6 @@
 package com.raissa.bffapis.service.impl;
 
+import com.raissa.bffapis.config.JsonConverter;
 import com.raissa.bffapis.domain.dto.request.DatosSaldosApiRequest;
 import com.raissa.bffapis.domain.dto.request.LoginRequest;
 import com.raissa.bffapis.domain.dto.request.ProviderLoginRequest;
@@ -22,9 +23,13 @@ import com.raissa.bffapis.domain.dto.response.SaldosRpaResponse;
 import com.raissa.bffapis.domain.dto.response.payments.BTErrorNegocioDto;
 import com.raissa.bffapis.domain.dto.response.payments.ConfirmaTransGetBffResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.ConfirmaTransGetResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.ConfirmaTransResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.ConsultaTransGetBffResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.ConsultaTransGetResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.ConsultaTransResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConfirmaTransDetalladaResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.GroupConfirmaTransResponseDto;
+import com.raissa.bffapis.domain.dto.response.payments.GroupConsultaTransDetalladaResponseDto;
 import com.raissa.bffapis.domain.dto.response.payments.GroupConsultaTransResponseDto;
 import com.raissa.bffapis.domain.entity.Provider;
 import com.raissa.bffapis.domain.entity.Session;
@@ -41,6 +46,7 @@ import com.raissa.bffapis.exception.RpaAuthenticationException;
 import com.raissa.bffapis.service.KeyService;
 import com.raissa.bffapis.service.RpaService;
 import com.raissa.bffapis.util.Constantes;
+import com.raissa.comun.util.ConstanteError;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +65,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -82,6 +89,7 @@ public class RpaServiceImpl implements RpaService {
     private final RestTemplate restTemplate;
     private final HttpSession httpSession;
     private final KeyService keyService;
+    private final JsonConverter jsonConverter;
 
     private static final DateTimeFormatter ENTRADA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter SALIDA = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -291,6 +299,69 @@ public class RpaServiceImpl implements RpaService {
     }
 
     @Override
+    public GroupConsultaTransDetalladaResponseDto consultaDetalladaTransferencia(String transactionId,
+                                                                                 String apiKey,
+                                                                                 GroupConsultaTransRequestDto listConsultasRequest) {
+        GroupConsultaTransDetalladaResponseDto responseDto = new GroupConsultaTransDetalladaResponseDto();
+
+        validateApiKeyInService(apiKey);
+        log.info("Ejecutando consulta de transferencia - TransactionId: {}, API Key: {}", transactionId, apiKey);
+
+        Session session = sessionRepository.findByTransactionId(transactionId).get();
+
+        String token = session.getToken();
+        String providerReference = session.getProvider();
+
+        Provider provider = providerRepository
+                .findByReferenceAndActive(providerReference, (short) 1)
+                .orElseThrow(() -> new ProviderNotFoundException("Provider no encontrado o inactivo: " + providerReference));
+
+        try {
+            List<ConsultaTransResponseDto> listResponseConsultas = new ArrayList<>();
+
+            ConsultaTransResponseDto responseConsulta;
+
+            if (provider.getApi() == 1) {
+                for (ConsultaTransRequestDto consultaRequest : listConsultasRequest.getListConsultaTransferencia()) {
+                    responseConsulta = evaluaConsultaDetallada(transactionId,
+                            token,
+                            provider.getRuta(),
+                            session,
+                            consultaRequest);
+                    responseConsulta.setIdSolicitud(consultaRequest.getIdSolicitud());
+                    responseConsulta.setIdCargoSolicitud(consultaRequest.getIdCargoSolicitud());
+                    responseConsulta.setIdAbonoSolicitud(consultaRequest.getIdAbonoSolicitud());
+                    listResponseConsultas.add(responseConsulta);
+                }
+
+                responseDto.setStatus(Constantes.KEY_SUCCESS);
+                responseDto.setListRespuestaConsultaTransferencia(listResponseConsultas);
+
+                return responseDto;
+            } else {
+                responseDto = new GroupConsultaTransDetalladaResponseDto();
+                responseDto.setStatus(Constantes.KEY_ERROR_CODE);
+                responseDto.setMessage(ConstanteError.MENSAJE_ERROR_PROVIDER_VACIO);
+                return responseDto;
+            }
+        } catch (ProviderNotFoundException e) {
+            log.warn("Error específico en consulta de transferencia: {}", e.getMessage());
+
+            responseDto = new GroupConsultaTransDetalladaResponseDto();
+            responseDto.setStatus(Constantes.KEY_ERROR_CODE);
+            responseDto.setMessage("Error específico en consulta de transferencia: " + e.getMessage());
+            return responseDto;
+        } catch (Exception e) {
+            log.error("Error inesperado en consulta de transferencia: {}", e.getMessage());
+
+            responseDto = new GroupConsultaTransDetalladaResponseDto();
+            responseDto.setStatus(Constantes.KEY_ERROR_CODE);
+            responseDto.setMessage("Error inesperado en consulta de transferencia: " + e.getMessage());
+            return responseDto;
+        }
+    }
+
+    @Override
     public GroupConsultaTransResponseDto consultaTransferencia(String transactionId,
                                                                String apiKey,
                                                                GroupConsultaTransRequestDto listConsultasRequest) {
@@ -338,6 +409,71 @@ public class RpaServiceImpl implements RpaService {
         } catch (Exception e) {
             log.error("Error inesperado en consulta de transferencia: {}", e.getMessage(), e);
             return GroupConsultaTransResponseDto.error("Error interno del servidor");
+        }
+    }
+
+    @Override
+    public GroupConfirmaTransDetalladaResponseDto confirmaTransferenciaDetallada(String transactionId,
+                                                                                 String apiKey,
+                                                                                 GroupConfirmaTransRequestDto listConfirmacionRequest) {
+        GroupConfirmaTransDetalladaResponseDto responseDto = new GroupConfirmaTransDetalladaResponseDto();
+
+        validateApiKeyInService(apiKey);
+
+        log.info("Ejecutando confirmacion de transferencia - TransactionId: {}, API Key: {}", transactionId, apiKey);
+
+        Session session = sessionRepository.findByTransactionId(transactionId).get();
+
+        String token = session.getToken();
+        String providerReference = session.getProvider();
+
+        Provider provider = providerRepository
+                .findByReferenceAndActive(providerReference, (short) 1)
+                .orElseThrow(() -> new ProviderNotFoundException("Provider no encontrado o inactivo: " + providerReference));
+
+        try {
+            List<ConfirmaTransResponseDto> listResponseConfirmacion = new ArrayList<>();
+
+            ConfirmaTransResponseDto responseConfirmacion;
+
+            log.warn("contenido de peticion: {}", listConfirmacionRequest.toString());
+
+            if (provider.getApi() == 1) {
+                for (ConfirmaTransRequestDto confirmaRequest : listConfirmacionRequest.getListConfirmacionTransferencia()) {
+                    responseConfirmacion = evaluaConfirmacionDetallada(transactionId,
+                            token,
+                            provider.getRuta(),
+                            session,
+                            confirmaRequest);
+                    responseConfirmacion.setIdSolicitud(confirmaRequest.getIdSolicitud());
+                    responseConfirmacion.setIdCargoSolicitud(confirmaRequest.getIdCargoSolicitud());
+                    responseConfirmacion.setIdAbonoSolicitud(confirmaRequest.getIdAbonoSolicitud());
+                    listResponseConfirmacion.add(responseConfirmacion);
+                }
+                responseDto.setStatus(Constantes.KEY_SUCCESS);
+                responseDto.setListRespuestaConfirmacionTransferencia(listResponseConfirmacion);
+
+                return responseDto;
+            } else {
+                responseDto = new GroupConfirmaTransDetalladaResponseDto();
+                responseDto.setStatus(Constantes.KEY_ERROR_CODE);
+                responseDto.setMessage(ConstanteError.MENSAJE_ERROR_PROVIDER_VACIO);
+                return responseDto;
+            }
+        } catch (ProviderNotFoundException e) {
+            log.warn("Error específico en confirmacion de transferencia: {}", e.getMessage());
+
+            responseDto = new GroupConfirmaTransDetalladaResponseDto();
+            responseDto.setStatus(Constantes.KEY_ERROR_CODE);
+            responseDto.setMessage("Error inesperado en confirmacion de transferencia: " + e.getMessage());
+            return responseDto;
+        } catch (Exception e) {
+            log.error("Error inesperado en confirmacion de transferencia: {}", e.getMessage());
+
+            responseDto = new GroupConfirmaTransDetalladaResponseDto();
+            responseDto.setStatus(Constantes.KEY_ERROR_CODE);
+            responseDto.setMessage("Error interno del servidor");
+            return responseDto;
         }
     }
 
@@ -1274,7 +1410,7 @@ public class RpaServiceImpl implements RpaService {
                 throw new ProviderTransferenciaException("Respuesta vacía del servicio de consulta de transferencias inmediatas.");
             }
 
-            if (body.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)) {
+            /*if (body.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)) {
                 Object erroresObj = body.getErroresNegocio() != null
                         ? body.getErroresNegocio().getBtErrorNegocio()
                         : null;
@@ -1288,11 +1424,11 @@ public class RpaServiceImpl implements RpaService {
                 body.setDscRespuesta(errores);
                 return Optional.of(body)
                         .orElseThrow(() -> new ProviderTransferenciaException("Body no disponible en respuesta exitosa del provider"));
-            } else {
+            } else {*/
                 log.info("Provider OK (transactionId={}): {}", transactionId, "Consulta correcta");
                 return Optional.of(body)
                         .orElseThrow(() -> new ProviderTransferenciaException("Body vacío en respuesta exitosa del provider"));
-            }
+            //}
         } catch (ProviderTransferenciaException e){
             log.error("Error controlado en la peticion al servidor de APIS (transactionId={}): {}", transactionId, e.getMessage());
             throw new ProviderTransferenciaException(e.getMessage());
@@ -1329,7 +1465,7 @@ public class RpaServiceImpl implements RpaService {
                 throw new ProviderTransferenciaException("Respuesta vacía del servicio de consulta de transferencias inmediatas.");
             }
 
-            if (body.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)) {
+            /*if (body.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR)) {
                 Object erroresObj = body.getErroresNegocio() != null
                         ? body.getErroresNegocio().getBtErrorNegocio()
                         : null;
@@ -1344,11 +1480,11 @@ public class RpaServiceImpl implements RpaService {
 
                 return Optional.of(body)
                         .orElseThrow(() -> new ProviderTransferenciaException(errores));
-            } else {
+            } else {*/
                 log.info("Provider OK (transactionId={}): {}", transactionId, "Consulta correcta");
                 return Optional.of(body)
                         .orElseThrow(() -> new ProviderTransferenciaException("Body vacío en respuesta exitosa del provider"));
-            }
+            //}
         } catch (ProviderTransferenciaException e){
             log.error("Error controlado en la peticion al servidor de APIS (transactionId={}): {}", transactionId, e.getMessage());
             throw new ProviderTransferenciaException(e.getMessage());
@@ -1385,6 +1521,32 @@ public class RpaServiceImpl implements RpaService {
         return responseConfirmacion;
     }
 
+    private ConfirmaTransResponseDto evaluaConfirmacionDetallada(String transactionId,
+                                                                 String token,
+                                                                 String providerRuta,
+                                                                 Session session,
+                                                                 ConfirmaTransRequestDto consultaRequest) {
+        ConfirmaTransResponseDto responseConfirmacion;
+        try {
+            ConfirmaTransGetBffResponseDto confirmacion = callConfirmacionTransferenciaApi(
+                    transactionId,
+                    token,
+                    providerRuta,
+                    session.getTokenAlterno(),
+                    session.getSessionToken(),
+                    consultaRequest);
+            responseConfirmacion = buildSuccessConfirmacionDetallada(confirmacion);
+        } catch (Exception e) {
+            responseConfirmacion = new ConfirmaTransResponseDto();
+            responseConfirmacion.setStatus(Constantes.KEY_ERROR_CODE);
+            responseConfirmacion.setMessage("Error inesperado al obtener confirmacion de transferencias");
+        }
+        return responseConfirmacion;
+    }
+
+    /**
+     * Evalua respuesta sin json incluida
+     */
     private ConsultaTransGetResponseDto evaluaConsultaResultado(String transactionId,
                                                                 String token,
                                                                 String providerRuta,
@@ -1412,9 +1574,38 @@ public class RpaServiceImpl implements RpaService {
         return responseConsulta;
     }
 
+    /**
+     * Evalua respuesta con json incluida
+     */
+    private ConsultaTransResponseDto evaluaConsultaDetallada(String transactionId,
+                                                                String token,
+                                                                String providerRuta,
+                                                                Session session,
+                                                                ConsultaTransRequestDto consultaRequest) {
+        ConsultaTransResponseDto responseConsulta;
+        try {
+            ConsultaTransGetBffResponseDto consulta = callConsultaTransferenciaApi(
+                    transactionId,
+                    token,
+                    providerRuta,
+                    session.getTokenAlterno(),
+                    session.getSessionToken(),
+                    consultaRequest);
+            responseConsulta = buildSuccessConsultaDetallada(consulta);
+        } catch (Exception e) {
+            responseConsulta = new ConsultaTransResponseDto();
+            responseConsulta.setStatus(Constantes.KEY_ERROR_CODE);
+            responseConsulta.setMessage("Error inesperado al obtener consulta de transferencias");
+        }
+        return responseConsulta;
+    }
+
+    /**
+     * Construye dto sin json incluido
+     */
     private ConsultaTransGetResponseDto buildSuccessConsultaResponseFromProvider(ConsultaTransGetBffResponseDto dto) {
         if (dto == null) {
-            return ConsultaTransGetResponseDto.error("Respuesta vacía del provider");
+            return ConsultaTransGetResponseDto.error(ConstanteError.MENSAJE_ERROR_PROVIDER_VACIO);
         }
 
         String status = Constantes.KEY_SUCCESS;
@@ -1450,9 +1641,40 @@ public class RpaServiceImpl implements RpaService {
                 .build();
     }
 
+    /**
+     * Construye dto con json incluido
+     */
+    private ConsultaTransResponseDto buildSuccessConsultaDetallada(ConsultaTransGetBffResponseDto dto) {
+        if (dto == null) {
+            ConsultaTransResponseDto respuesta = new ConsultaTransResponseDto();
+            respuesta.setStatus(Constantes.KEY_ERROR_CODE);
+            respuesta.setMessage(ConstanteError.MENSAJE_ERROR_PROVIDER_VACIO);
+            return respuesta;
+        }
+
+        String status = Constantes.KEY_SUCCESS;
+
+        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_WARNING) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_PLAT_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_SEG_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_CONF_ERROR)){
+            status = Constantes.KEY_ERROR_BUSSINESS_CODE;
+        }
+
+        String json = jsonConverter.toJson(dto);
+
+        return ConsultaTransResponseDto.builder()
+                .status(status)
+                .message("")
+                .responseBff(dto)
+                .textResponseBff(json)
+                .build();
+    }
+
     private ConfirmaTransGetResponseDto buildSuccessConfirmacionResponseFromProvider(ConfirmaTransGetBffResponseDto dto) {
         if (dto == null) {
-            return ConfirmaTransGetResponseDto.error("Respuesta vacía del provider");
+            return ConfirmaTransGetResponseDto.error(ConstanteError.MENSAJE_ERROR_PROVIDER_VACIO);
         }
 
         String status = Constantes.KEY_SUCCESS;
@@ -1477,6 +1699,34 @@ public class RpaServiceImpl implements RpaService {
                 .build();
     }
 
+    private ConfirmaTransResponseDto buildSuccessConfirmacionDetallada(ConfirmaTransGetBffResponseDto dto) {
+        if (dto == null) {
+            ConfirmaTransResponseDto respuesta = new ConfirmaTransResponseDto();
+            respuesta.setStatus(Constantes.KEY_ERROR_CODE);
+            respuesta.setMessage(ConstanteError.MENSAJE_ERROR_PROVIDER_VACIO);
+            return respuesta;
+        }
+
+        String status = Constantes.KEY_SUCCESS;
+
+        if(dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_WARNING) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_PLAT_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_SEG_ERROR) ||
+                dto.getBtoutreq().getEstado().equals(Constantes.ESTADO_ALFIN_CONF_ERROR)){
+            status = Constantes.KEY_ERROR_BUSSINESS_CODE;
+        }
+
+        String json = jsonConverter.toJson(dto);
+
+        return ConfirmaTransResponseDto.builder()
+                .status(status)
+                .message("")
+                .responseBff(dto)
+                .textResponseBff(json)
+                .build();
+    }
+
     private ConsultaTransSendBffRequestDto construirDatosConsultaRequest(ConsultaTransRequestDto request,
                                                                          String tokenAlterno,
                                                                          String sessionToken) {
@@ -1486,7 +1736,7 @@ public class RpaServiceImpl implements RpaService {
         sendRequest.setClienteBaaS(request.getClienteBaaS());
         sendRequest.setCuentaBaaS(request.getCuentaBaaS());
         sendRequest.setMoneda(request.getMoneda());
-        sendRequest.setImporte(request.getImporte());
+        sendRequest.setImporte(new BigDecimal(request.getImporte().stripTrailingZeros().toPlainString()));
         sendRequest.setCodigoTransaccion(request.getCodigoTransaccion());
         sendRequest.setBancoDestino(request.getBancoDestino());
         sendRequest.setSucursalDestino(request.getSucursalDestino());
@@ -1511,7 +1761,7 @@ public class RpaServiceImpl implements RpaService {
         sendRequest.setClienteBaaS(request.getClienteBaaS());
         sendRequest.setCuentaBaaS(request.getCuentaBaaS());
         sendRequest.setMoneda(request.getMoneda());
-        sendRequest.setImporte(request.getImporte());
+        sendRequest.setImporte(new BigDecimal(request.getImporte().stripTrailingZeros().toPlainString()));
         sendRequest.setTransferenciaId(request.getTransferenciaId());
         sendRequest.setMpe001idl(request.getMpe001idl());
 
